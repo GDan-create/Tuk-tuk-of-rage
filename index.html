@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grand Trans Auto</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+        }
+        canvas {
+            display: block;
+        }
+        #hpBar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #moneyBar {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: yellow;
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="hpBar">HP: 100</div>
+    <div id="moneyBar">Money: 0</div>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let roadWidth = canvas.width * 0.5;
+        let roadPosition = canvas.width / 2 - roadWidth / 2;
+        let lanePositions = [roadPosition - 140, roadPosition - 80, roadPosition + roadWidth * 0.1, roadPosition + roadWidth * 0.5, roadPosition + roadWidth * 0.9, roadPosition + roadWidth + 80, roadPosition + roadWidth + 140];
+        let currentLane = 2;
+        let speed = 5;
+        let roadOffset = 0;
+        let isBoosting = false;
+        let money = 0;
+        let passengers = [];
+        let obstacles = [];
+        let frameCount = 0;
+
+        function drawRoad() {
+            ctx.fillStyle = "gray";
+            ctx.fillRect(roadPosition, 0, roadWidth, canvas.height);
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 5;
+            let dividerX1 = roadPosition + roadWidth * 0.33;
+            let dividerX2 = roadPosition + roadWidth * 0.66;
+            ctx.beginPath();
+            ctx.moveTo(dividerX1, 0);
+            ctx.lineTo(dividerX1, canvas.height);
+            ctx.moveTo(dividerX2, 0);
+            ctx.lineTo(dividerX2, canvas.height);
+            ctx.stroke();
+        }
+
+        class Entity {
+            constructor(x, y, emoji, size) {
+                this.x = x;
+                this.y = y;
+                this.emoji = emoji;
+                this.size = size;
+            }
+            draw() {
+                ctx.font = `${this.size}px sans-serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(this.emoji, this.x, this.y);
+            }
+            update(speed) {
+                this.y += speed;
+            }
+            collidesWith(entity) {
+                return (
+                    Math.abs(this.x - entity.x) < this.size / 2 &&
+                    Math.abs(this.y - entity.y) < this.size / 2
+                );
+            }
+        }
+
+        class TukTuk extends Entity {
+            constructor() {
+                super(lanePositions[currentLane], canvas.height - 100, "🛺", 50);
+                this.hp = 100;
+            }
+            moveLeft() {
+                if (currentLane > 0) {
+                    currentLane--;
+                    this.x = lanePositions[currentLane];
+                }
+            }
+            moveRight() {
+                if (currentLane < lanePositions.length - 1) {
+                    currentLane++;
+                    this.x = lanePositions[currentLane];
+                }
+            }
+            moveUp() {
+                if (this.y > 50) {
+                    this.y -= 50;
+                }
+            }
+            moveDown() {
+                if (this.y < canvas.height - 100) {
+                    this.y += 50;
+                }
+            }
+        }
+
+        const tukTuk = new TukTuk();
+
+        function spawnObstacles() {
+            const types = ["🚗", "🐘", "🚴‍♀️", "🚘", "🚖"];
+            let numObstacles = Math.floor(Math.random() * 3) + 1;
+            let availableLanes = [2, 3, 4];
+            for (let i = 0; i < numObstacles; i++) {
+                let laneIndex = Math.floor(Math.random() * availableLanes.length);
+                let lane = availableLanes.splice(laneIndex, 1)[0];
+                let offsetY = Math.random() * -400;
+                obstacles.push(new Entity(lanePositions[lane], offsetY, types[Math.floor(Math.random() * types.length)], 50));
+            }
+        }
+
+        function spawnPedestrians() {
+            const sides = [1, 5];
+            for (let side of sides) {
+                passengers.push(new Entity(lanePositions[side], -Math.random() * 400, "🚶", 40));
+            }
+        }
+
+        function spawnBuildings() {
+    const buildingTypes = ["🏠", "🏡", "🏢", "🏣", "🏤", "🏥", "🏦", "🏨", "🏩", "🏫"];
+    const buildingLanes = [0, 6]; // Дома появляются на крайних рельсах
+    for (let lane of buildingLanes) {
+        let offsetY = Math.random() * -400;
+        obstacles.push(new Entity(lanePositions[lane], offsetY, buildingTypes[Math.floor(Math.random() * buildingTypes.length)], 50));
+    }
+}
+
+function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawRoad();
+            tukTuk.draw();
+            if (frameCount % 200 === 0) {
+    spawnBuildings();
+                spawnObstacles();
+                spawnPedestrians();
+            }
+            obstacles.forEach((obstacle, index) => {
+                obstacle.update(speed);
+                obstacle.draw();
+                if (obstacle.collidesWith(tukTuk)) {
+                    console.log("Collision!");
+                    obstacles.splice(index, 1);
+                    tukTuk.hp -= 20;
+                    document.getElementById("hpBar").textContent = `HP: ${tukTuk.hp}`;
+                    if (tukTuk.hp <= 0) {
+                        alert("Game Over!");
+                        window.location.reload();
+                    }
+                }
+            });
+            passengers.forEach((passenger, index) => {
+                passenger.update(speed);
+                passenger.draw();
+                if (passenger.collidesWith(tukTuk)) {
+                    passenger.emoji = "🥩";
+                }
+            });
+            frameCount++;
+            requestAnimationFrame(update);
+        }
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowLeft") tukTuk.moveLeft();
+            if (event.key === "ArrowRight") tukTuk.moveRight();
+            if (event.key === "ArrowUp") tukTuk.moveUp();
+            if (event.key === "ArrowDown") tukTuk.moveDown();
+            if (event.key === "Shift") speed = 10;
+        });
+
+        document.addEventListener("keyup", (event) => {
+            if (event.key === "Shift") speed = 5;
+        });
+
+        update();
+    </script>
+</body>
+</html>
