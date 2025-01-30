@@ -54,6 +54,9 @@
         let passengers = [];
         let obstacles = [];
         let frameCount = 0;
+        let touchStartX = 0;
+        let touchEndX = 0;
+
 
         function drawRoad() {
             ctx.fillStyle = "gray";
@@ -152,6 +155,14 @@
         obstacles.push(new Entity(lanePositions[lane], offsetY, buildingTypes[Math.floor(Math.random() * buildingTypes.length)], 50));
     }
 }
+function handleSwipe() {
+    let swipeDistance = touchEndX - touchStartX;
+    if (swipeDistance > 50) {
+        tukTuk.moveRight();  // Свайп вправо – движение вправо
+    } else if (swipeDistance < -50) {
+        tukTuk.moveLeft();   // Свайп влево – движение влево
+    }
+}
 
 function update() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -194,6 +205,13 @@ function update() {
             if (event.key === "ArrowDown") tukTuk.moveDown();
             if (event.key === "Shift") speed = 10;
         });
+       document.addEventListener("touchstart", (event) => {
+        touchStartX = event.touches[0].clientX;
+});
+       document.addEventListener("touchend", (event) => {
+    touchEndX = event.changedTouches[0].clientX;
+    handleSwipe();
+});
 
         document.addEventListener("keyup", (event) => {
             if (event.key === "Shift") speed = 5;
